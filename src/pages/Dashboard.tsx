@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, LogOut, Globe, Star, Clock, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { Plus, LogOut, Globe, Star, Clock, CheckCircle, MessageSquare } from "lucide-react";
 import Icon from "@/components/ui/icon";
-import { getProjects, createProject } from "@/lib/api";
+import { getProjects, createProject, getReviews } from "@/lib/api";
 
 interface Project {
   id: number;
@@ -23,10 +23,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState<{ user_id: number; phone: string } | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [reviewCounts, setReviewCounts] = useState<Record<number, number>>({});
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ site_url: "", reviews_per_day: "10" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const projectsRef = useRef<Project[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("rb_user");
@@ -36,9 +39,30 @@ export default function Dashboard() {
     loadProjects(u.user_id);
   }, []);
 
+  useEffect(() => {
+    projectsRef.current = projects;
+    if (projects.length === 0) return;
+    loadReviewCounts(projects);
+    pollRef.current = setInterval(() => {
+      loadReviewCounts(projectsRef.current);
+    }, 10000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [projects]);
+
   const loadProjects = async (user_id: number) => {
     const data = await getProjects(user_id);
     if (Array.isArray(data)) setProjects(data.filter((p: Project) => p.status !== "deleted"));
+  };
+
+  const loadReviewCounts = async (list: Project[]) => {
+    const counts: Record<number, number> = {};
+    await Promise.all(
+      list.map(async (p) => {
+        const data = await getReviews(p.id);
+        counts[p.id] = Array.isArray(data) ? data.length : 0;
+      })
+    );
+    setReviewCounts(counts);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -86,11 +110,12 @@ export default function Dashboard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
           {[
             { label: "Проектов", value: projects.length, icon: "Globe" },
             { label: "Активных", value: projects.filter(p => p.status === "active").length, icon: "CheckCircle" },
             { label: "На рассмотрении", value: projects.filter(p => p.status === "pending").length, icon: "Clock" },
+            { label: "Всего отзывов", value: Object.values(reviewCounts).reduce((a, b) => a + b, 0), icon: "MessageSquare" },
           ].map((s, i) => (
             <div key={i} className="bg-card/50 border border-accent/10 rounded-2xl p-5 flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -129,29 +154,49 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-4">
-            {projects.map(p => (
-              <div key={p.id} className="bg-card/50 border border-accent/10 hover:border-accent/30 rounded-2xl p-6 transition-all">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                      <Globe className="w-5 h-5 text-accent" />
-                    </div>
-                    <div>
-                      <div className="font-semibold">{p.site_url}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {p.reviews_per_day} отзывов / сутки · Тариф Базовый
+            {projects.map(p => {
+              const count = reviewCounts[p.id] ?? null;
+              const isActive = p.status === "active";
+              return (
+                <div key={p.id} className="bg-card/50 border border-accent/10 hover:border-accent/30 rounded-2xl p-6 transition-all">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <Globe className="w-5 h-5 text-accent" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{p.site_url}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {p.reviews_per_day} отзывов / сутки · Тариф Базовый
+                        </div>
                       </div>
                     </div>
+                    <span className={`text-xs font-medium flex-shrink-0 ${STATUS_LABEL[p.status]?.color || "text-gray-400"}`}>
+                      {STATUS_LABEL[p.status]?.label || p.status}
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium ${STATUS_LABEL[p.status]?.color || "text-gray-400"}`}>
-                    {STATUS_LABEL[p.status]?.label || p.status}
-                  </span>
+
+                  {/* Live review counter */}
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-accent/60" />
+                      <span className="text-sm text-muted-foreground">Отзывов на сайте:</span>
+                      {count === null ? (
+                        <span className="text-sm text-muted-foreground animate-pulse">...</span>
+                      ) : (
+                        <span className="text-sm font-bold text-white">{count}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-green-400 animate-pulse" : "bg-muted-foreground/30"}`} />
+                      <span className="text-xs text-muted-foreground">
+                        {isActive ? "обновляется каждые 10 сек" : "обновление после активации"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  Создан: {new Date(p.created_at).toLocaleDateString("ru")}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
