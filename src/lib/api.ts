@@ -1,6 +1,7 @@
 const URLS = {
   auth: "https://functions.poehali.dev/d7f277a6-09f8-4300-b057-36f53b303c79",
   projects: "https://functions.poehali.dev/e35a8c3b-39f4-47be-b9ff-5eee65f7abe8",
+  reviews: "https://functions.poehali.dev/bd0ea93d-f2d8-4f8c-9e94-9161a4dd5244",
 };
 
 export async function authRequest(action: "register" | "login", phone: string, password: string) {
@@ -38,5 +39,20 @@ export async function updateProject(id: number, data: { status?: string; reviews
 
 export async function deleteProject(id: number) {
   const res = await fetch(`${URLS.projects}?id=${id}`, { method: "DELETE" });
+  return res.json();
+}
+
+export async function getReviews(project_id?: number) {
+  const url = project_id ? `${URLS.reviews}?project_id=${project_id}` : URLS.reviews;
+  const res = await fetch(url);
+  return res.json();
+}
+
+export async function generateReviews(project_id: number, site_url: string, count: number) {
+  const res = await fetch(URLS.reviews, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project_id, site_url, count }),
+  });
   return res.json();
 }

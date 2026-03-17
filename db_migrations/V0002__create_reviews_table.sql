@@ -1,0 +1,9 @@
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER REFERENCES projects(id),
+  author_name VARCHAR(100) NOT NULL,
+  rating INTEGER NOT NULL DEFAULT 5,
+  text TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
