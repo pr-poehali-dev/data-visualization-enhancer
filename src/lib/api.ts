@@ -48,11 +48,34 @@ export async function getReviews(project_id?: number) {
   return res.json();
 }
 
-export async function generateReviews(project_id: number, site_url: string, count: number) {
+export async function generateReviews(project_id: number, site_url: string, count: number, user_id?: number) {
   const res = await fetch(URLS.reviews, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ project_id, site_url, count }),
+    body: JSON.stringify({ project_id, site_url, count, user_id }),
+  });
+  return res.json();
+}
+
+export async function getNotifications(user_id: number) {
+  const res = await fetch(`${URLS.projects}?resource=notifications&user_id=${user_id}`);
+  return res.json();
+}
+
+export async function markNotificationRead(id: number) {
+  const res = await fetch(URLS.projects, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "read", id }),
+  });
+  return res.json();
+}
+
+export async function markAllNotificationsRead(user_id: number) {
+  const res = await fetch(URLS.projects, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "read_all", user_id }),
   });
   return res.json();
 }

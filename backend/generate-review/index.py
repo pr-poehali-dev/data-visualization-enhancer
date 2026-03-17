@@ -2,12 +2,14 @@
 Генерирует реалистичные отзывы для сайта клиента с помощью OpenAI GPT.
 При недоступности GPT использует шаблонную генерацию.
 Сохраняет отзывы в БД, возвращает список сгенерированных отзывов.
+После генерации отправляет ежедневный отчёт в уведомления клиента.
 """
 import json
 import os
 import random
 import psycopg2
 import urllib.request
+from datetime import date
 
 
 CORS = {
@@ -51,6 +53,20 @@ REVIEW_TEMPLATES = [
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
+
+
+def send_daily_report(cur, user_id: int, site_url: str, count_today: int, total: int):
+    today = date.today().strftime("%d.%m.%Y")
+    title = f"Отчёт за {today} — {site_url}"
+    message = (
+        f"За сегодня опубликовано новых отзывов: {count_today}\n"
+        f"Всего отзывов на сайте: {total}\n"
+        f"Сайт: {site_url}"
+    )
+    cur.execute(
+        "INSERT INTO notifications (user_id, title, message) VALUES (%s, %s, %s)",
+        (user_id, title, message)
+    )
 
 
 def generate_review_gpt(site_url: str, count: int) -> list:
@@ -133,6 +149,7 @@ def handler(event: dict, context) -> dict:
         project_id = body.get("project_id")
         site_url = body.get("site_url", "")
         count = min(int(body.get("count", 5)), 20)
+        user_id = body.get("user_id")
 
         if not project_id or not site_url:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Нужны project_id и site_url"})}
@@ -157,6 +174,13 @@ def handler(event: dict, context) -> dict:
             )
             row = cur.fetchone()
             saved.append({"id": row[0], "author_name": name, "rating": rating, "text": text, "created_at": str(row[1])})
+
+        # Считаем общее кол-во отзывов и отправляем отчёт
+        if user_id and saved:
+            cur.execute("SELECT COUNT(*) FROM reviews WHERE project_id = %s", (project_id,))
+            total = cur.fetchone()[0]
+            send_daily_report(cur, user_id, site_url, len(saved), total)
+
         conn.commit()
         conn.close()
 

@@ -1,8 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, LogOut, Globe, Star, Clock, CheckCircle, MessageSquare } from "lucide-react";
+import { Plus, LogOut, Globe, Star, Clock, CheckCircle, MessageSquare, Bell } from "lucide-react";
 import Icon from "@/components/ui/icon";
-import { getProjects, createProject, getReviews } from "@/lib/api";
+import { getProjects, createProject, getReviews, getNotifications, markNotificationRead, markAllNotificationsRead } from "@/lib/api";
+
+interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 interface Project {
   id: number;
@@ -28,6 +36,8 @@ export default function Dashboard() {
   const [form, setForm] = useState({ site_url: "", reviews_per_day: "10" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const projectsRef = useRef<Project[]>([]);
 
@@ -37,7 +47,24 @@ export default function Dashboard() {
     const u = JSON.parse(stored);
     setUser(u);
     loadProjects(u.user_id);
+    loadNotifications(u.user_id);
   }, []);
+
+  const loadNotifications = async (user_id: number) => {
+    const data = await getNotifications(user_id);
+    if (Array.isArray(data)) setNotifications(data);
+  };
+
+  const handleReadAll = async () => {
+    if (!user) return;
+    await markAllNotificationsRead(user.user_id);
+    setNotifications(n => n.map(x => ({ ...x, is_read: true })));
+  };
+
+  const handleReadOne = async (id: number) => {
+    await markNotificationRead(id);
+    setNotifications(n => n.map(x => x.id === id ? { ...x, is_read: true } : x));
+  };
 
   useEffect(() => {
     projectsRef.current = projects;
@@ -94,6 +121,17 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user?.phone}</span>
+            <button
+              onClick={() => setShowNotifications(v => !v)}
+              className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-accent/10 transition-colors"
+            >
+              <Bell className="w-5 h-5 text-muted-foreground hover:text-white transition-colors" />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-accent text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {notifications.filter(n => !n.is_read).length}
+                </span>
+              )}
+            </button>
             <button onClick={logout} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors">
               <LogOut className="w-4 h-4" />
               Выйти
@@ -200,6 +238,66 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Notifications panel */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setShowNotifications(false)}>
+          <div
+            className="relative h-full w-full max-w-sm bg-card border-l border-accent/10 shadow-2xl flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-5 border-b border-accent/10">
+              <div className="flex items-center gap-2">
+                <Bell className="w-5 h-5 text-accent" />
+                <span className="font-display font-bold text-lg">Уведомления</span>
+                {notifications.filter(n => !n.is_read).length > 0 && (
+                  <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs rounded-full font-medium">
+                    {notifications.filter(n => !n.is_read).length} новых
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {notifications.some(n => !n.is_read) && (
+                  <button onClick={handleReadAll} className="text-xs text-muted-foreground hover:text-white transition-colors">
+                    Прочитать все
+                  </button>
+                )}
+                <button onClick={() => setShowNotifications(false)} className="text-muted-foreground hover:text-white transition-colors text-xl leading-none">×</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+                  <Bell className="w-10 h-10 opacity-20" />
+                  <p className="text-sm">Уведомлений пока нет</p>
+                  <p className="text-xs opacity-60">Отчёты появятся после публикации отзывов</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-accent/5">
+                  {notifications.map(n => (
+                    <div
+                      key={n.id}
+                      className={`px-6 py-4 cursor-pointer hover:bg-accent/5 transition-colors ${!n.is_read ? "bg-accent/5" : ""}`}
+                      onClick={() => handleReadOne(n.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {!n.is_read && <div className="w-2 h-2 rounded-full bg-accent mt-1.5 flex-shrink-0" />}
+                        <div className={!n.is_read ? "" : "pl-5"}>
+                          <p className="text-sm font-medium text-white leading-snug">{n.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line leading-relaxed">{n.message}</p>
+                          <p className="text-[11px] text-muted-foreground/50 mt-2">
+                            {new Date(n.created_at).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add project modal */}
       {showForm && (
