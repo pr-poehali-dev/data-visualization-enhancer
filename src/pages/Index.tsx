@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, Star, Globe, Shield, TrendingUp, Users, MessageCircle, X, CheckCircle, Lock } from "lucide-react";
 import Icon from "@/components/ui/icon";
+import { authRequest } from "@/lib/api";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [visibleSections, setVisibleSections] = useState<Record<string, boolean>>({});
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -10,6 +13,18 @@ const Index = () => {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminForm, setAdminForm] = useState({ login: "", password: "" });
   const [adminError, setAdminError] = useState(false);
+
+  // Auth modal
+  const [showAuth, setShowAuth] = useState(false);
+  const [authTab, setAuthTab] = useState<"login" | "register">("register");
+  const [authForm, setAuthForm] = useState({ phone: "", password: "" });
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("rb_user");
+    if (stored) navigate("/dashboard");
+  }, []);
 
   useEffect(() => {
     const observers: Record<string, IntersectionObserver> = {};
@@ -33,6 +48,18 @@ const Index = () => {
     };
   }, []);
 
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError("");
+    const result = await authRequest(authTab, authForm.phone, authForm.password);
+    setAuthLoading(false);
+    if (result.error) { setAuthError(result.error); return; }
+    localStorage.setItem("rb_user", JSON.stringify(result));
+    setShowAuth(false);
+    navigate("/dashboard");
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setShowModal(false);
@@ -43,8 +70,9 @@ const Index = () => {
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (adminForm.login === "Yalta" && adminForm.password === "Yalta220577") {
+      sessionStorage.setItem("rb_admin", "1");
       setShowAdminLogin(false);
-      window.location.href = "/admin";
+      navigate("/admin");
     } else {
       setAdminError(true);
       setTimeout(() => setAdminError(false), 2500);
@@ -68,11 +96,14 @@ const Index = () => {
             <a href="#pricing" className="text-muted-foreground hover:text-white transition-colors">Тарифы</a>
           </nav>
           <div className="flex gap-3">
-            <button className="px-5 py-2.5 text-sm font-medium border border-accent/40 rounded-full hover:border-accent/70 hover:bg-accent/10 transition-all">
+            <button
+              onClick={() => { setAuthTab("login"); setShowAuth(true); }}
+              className="px-5 py-2.5 text-sm font-medium border border-accent/40 rounded-full hover:border-accent/70 hover:bg-accent/10 transition-all"
+            >
               Войти
             </button>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => { setAuthTab("register"); setShowAuth(true); }}
               className="px-5 py-2.5 text-sm font-medium bg-gradient-to-r from-accent via-accent to-accent/80 text-black rounded-full hover:shadow-lg hover:shadow-accent/40 transition-all font-semibold"
             >
               Начать
@@ -108,7 +139,7 @@ const Index = () => {
               </p>
               <div className="flex gap-4 mb-12 flex-col sm:flex-row">
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => { setAuthTab("register"); setShowAuth(true); }}
                   className="group px-8 py-4 bg-gradient-to-r from-accent to-accent/90 text-black rounded-full hover:shadow-2xl hover:shadow-accent/50 transition-all font-semibold text-lg flex items-center gap-3 justify-center"
                 >
                   Заказать накрутку
@@ -310,7 +341,7 @@ const Index = () => {
                       </ul>
                     </div>
                     <button
-                      onClick={() => setShowModal(true)}
+                      onClick={() => { setAuthTab("register"); setShowAuth(true); }}
                       className={`w-full px-6 py-4 rounded-xl font-semibold transition-all ${plan.highlight ? "bg-gradient-to-r from-accent to-accent/80 text-black hover:shadow-xl hover:shadow-accent/40" : "border border-accent/20 hover:border-accent/40 hover:bg-accent/5"}`}
                     >
                       {plan.highlight ? "Связаться с менеджером" : "Заказать сейчас"}
@@ -335,7 +366,7 @@ const Index = () => {
             Оставьте заявку — менеджер свяжется с вами в течение 15 минут и расскажет всё про сервис.
           </p>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => { setAuthTab("register"); setShowAuth(true); }}
             className="group px-10 py-5 bg-gradient-to-r from-accent to-accent/90 text-black rounded-full hover:shadow-2xl hover:shadow-accent/40 transition-all font-bold text-lg flex items-center gap-3 mx-auto"
           >
             Получить консультацию
@@ -489,6 +520,70 @@ const Index = () => {
           <div>
             <div className="font-semibold text-sm">Заявка отправлена!</div>
             <div className="text-xs text-muted-foreground">Менеджер свяжется с вами в течение 15 минут</div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal — Вход / Регистрация */}
+      {showAuth && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowAuth(false)} />
+          <div className="relative bg-card border border-accent/20 rounded-3xl p-8 w-full max-w-md shadow-2xl shadow-accent/10">
+            <button
+              onClick={() => setShowAuth(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Tabs */}
+            <div className="flex gap-1 bg-background/50 rounded-xl p-1 mb-6">
+              <button
+                onClick={() => setAuthTab("register")}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${authTab === "register" ? "bg-accent text-black" : "text-muted-foreground hover:text-white"}`}
+              >
+                Регистрация
+              </button>
+              <button
+                onClick={() => setAuthTab("login")}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${authTab === "login" ? "bg-accent text-black" : "text-muted-foreground hover:text-white"}`}
+              >
+                Войти
+              </button>
+            </div>
+
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block text-white/80">Номер телефона</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="+7 999 000 00 00"
+                  value={authForm.phone}
+                  onChange={e => setAuthForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl bg-background border border-accent/20 focus:border-accent/60 outline-none text-white placeholder:text-muted-foreground transition-colors text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block text-white/80">Пароль</label>
+                <input
+                  required
+                  type="password"
+                  placeholder={authTab === "register" ? "Придумайте пароль" : "Введите пароль"}
+                  value={authForm.password}
+                  onChange={e => setAuthForm(f => ({ ...f, password: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl bg-background border border-accent/20 focus:border-accent/60 outline-none text-white placeholder:text-muted-foreground transition-colors text-sm"
+                />
+              </div>
+              {authError && <p className="text-sm text-red-400">{authError}</p>}
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-4 bg-gradient-to-r from-accent to-accent/80 text-black rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/30 transition-all disabled:opacity-50 mt-2"
+              >
+                {authLoading ? "Загрузка..." : authTab === "register" ? "Создать аккаунт" : "Войти"}
+              </button>
+            </form>
           </div>
         </div>
       )}
