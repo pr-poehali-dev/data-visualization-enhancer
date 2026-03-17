@@ -27,12 +27,6 @@ export default function LandingHeader({ onLoginClick, onRegisterClick }: Landing
           >
             Войти
           </button>
-          <button
-            onClick={onRegisterClick}
-            className="px-5 py-2.5 text-sm font-medium bg-gradient-to-r from-accent via-accent to-accent/80 text-black rounded-full hover:shadow-lg hover:shadow-accent/40 transition-all font-semibold"
-          >
-            Начать
-          </button>
         </div>
       </div>
     </header>
