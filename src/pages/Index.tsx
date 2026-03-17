@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Star, Globe, Shield, TrendingUp, Users, MessageCircle, X, CheckCircle } from "lucide-react";
+import { ArrowRight, Star, Globe, Shield, TrendingUp, Users, MessageCircle, X, CheckCircle, Lock } from "lucide-react";
 import Icon from "@/components/ui/icon";
 
 const Index = () => {
@@ -7,6 +7,9 @@ const Index = () => {
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [form, setForm] = useState({ name: "", site: "", phone: "" });
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminForm, setAdminForm] = useState({ login: "", password: "" });
+  const [adminError, setAdminError] = useState(false);
 
   useEffect(() => {
     const observers: Record<string, IntersectionObserver> = {};
@@ -35,6 +38,17 @@ const Index = () => {
     setShowModal(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 4000);
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminForm.login === "Yalta" && adminForm.password === "Yalta220577") {
+      setShowAdminLogin(false);
+      window.location.href = "/admin";
+    } else {
+      setAdminError(true);
+      setTimeout(() => setAdminError(false), 2500);
+    }
   };
 
   return (
@@ -334,13 +348,74 @@ const Index = () => {
       <footer className="border-t border-accent/10 py-12 px-6 bg-background/50">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-muted-foreground">
           <p>© 2025 ReviewBoost — Управление репутацией</p>
-          <div className="flex gap-8">
+          <div className="flex gap-8 items-center">
             <a href="#" className="hover:text-white transition-colors">Конфиденциальность</a>
             <a href="#" className="hover:text-white transition-colors">Условия</a>
             <a href="#" className="hover:text-white transition-colors">Контакты</a>
+            <button
+              onClick={() => setShowAdminLogin(true)}
+              className="flex items-center gap-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors text-xs"
+            >
+              <Lock className="w-3 h-3" />
+              Админ
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* Admin Login Modal */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowAdminLogin(false)} />
+          <div className="relative bg-card border border-accent/20 rounded-3xl p-8 w-full max-w-sm shadow-2xl shadow-accent/10">
+            <button
+              onClick={() => setShowAdminLogin(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                <Lock className="w-5 h-5 text-accent" />
+              </div>
+              <h3 className="text-xl font-display font-bold">Вход в админ-панель</h3>
+            </div>
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block text-white/80">Логин</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="Логин"
+                  value={adminForm.login}
+                  onChange={e => setAdminForm(f => ({ ...f, login: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl bg-background border border-accent/20 focus:border-accent/60 outline-none text-white placeholder:text-muted-foreground transition-colors text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block text-white/80">Пароль</label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Пароль"
+                  value={adminForm.password}
+                  onChange={e => setAdminForm(f => ({ ...f, password: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl bg-background border border-accent/20 focus:border-accent/60 outline-none text-white placeholder:text-muted-foreground transition-colors text-sm"
+                />
+              </div>
+              {adminError && (
+                <p className="text-sm text-red-400">Неверный логин или пароль</p>
+              )}
+              <button
+                type="submit"
+                className="w-full py-4 bg-gradient-to-r from-accent to-accent/80 text-black rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/30 transition-all"
+              >
+                Войти
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal — связь с менеджером */}
       {showModal && (
