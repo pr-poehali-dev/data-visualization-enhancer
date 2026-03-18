@@ -11,6 +11,7 @@ interface Project {
   status: string;
   created_at: string;
   phone: string;
+  review_platform_url?: string;
 }
 
 interface Review {
@@ -43,6 +44,8 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<number | null>(null);
   const [editRpd, setEditRpd] = useState("");
+  const [editPlatformUrlId, setEditPlatformUrlId] = useState<number | null>(null);
+  const [editPlatformUrl, setEditPlatformUrl] = useState("");
 
   // Reviews generator
   const [genProjectId, setGenProjectId] = useState<number | null>(null);
@@ -94,6 +97,12 @@ export default function AdminPanel() {
   const handleEditSave = async (id: number) => {
     await updateProject(id, { reviews_per_day: parseInt(editRpd) });
     setEditId(null);
+    loadProjects();
+  };
+
+  const handlePlatformUrlSave = async (id: number) => {
+    await updateProject(id, { review_platform_url: editPlatformUrl.trim() });
+    setEditPlatformUrlId(null);
     loadProjects();
   };
 
@@ -241,6 +250,28 @@ export default function AdminPanel() {
                           )}
                           <span>·</span>
                           <span>{new Date(p.created_at).toLocaleDateString("ru")}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 text-sm flex-wrap">
+                          {editPlatformUrlId === p.id ? (
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <input
+                                type="url"
+                                placeholder="https://yandex.ru/maps/org/..."
+                                value={editPlatformUrl}
+                                onChange={e => setEditPlatformUrl(e.target.value)}
+                                className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-background border border-accent/30 text-white text-xs outline-none"
+                              />
+                              <button onClick={() => handlePlatformUrlSave(p.id)} className="text-green-400 hover:text-green-300 flex-shrink-0"><Check className="w-4 h-4" /></button>
+                              <button onClick={() => setEditPlatformUrlId(null)} className="text-red-400 hover:text-red-300 flex-shrink-0"><X className="w-4 h-4" /></button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditPlatformUrlId(p.id); setEditPlatformUrl(p.review_platform_url || ""); }}
+                              className="text-muted-foreground hover:text-white transition-colors text-xs"
+                            >
+                              🗺️ {p.review_platform_url ? "Яндекс: " + p.review_platform_url.slice(0, 40) + "..." : "Добавить ссылку на Яндекс"}
+                            </button>
+                          )}
                         </div>
                       </div>
 

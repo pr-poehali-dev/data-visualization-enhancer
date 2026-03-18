@@ -1,0 +1,1 @@
+ALTER TABLE t_p18270630_data_visualization_e.projects ADD COLUMN IF NOT EXISTS review_platform_url character varying(1000) NULL;

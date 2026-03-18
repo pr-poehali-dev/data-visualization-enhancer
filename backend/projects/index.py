@@ -71,18 +71,19 @@ def handler(event: dict, context) -> dict:
         user_id = body.get("user_id")
         site_url = (body.get("site_url") or "").strip()
         reviews_per_day = int(body.get("reviews_per_day") or 10)
+        review_platform_url = (body.get("review_platform_url") or "").strip() or None
         if not user_id or not site_url:
             conn.close()
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Укажите user_id и сайт"})}
         cur.execute(
-            "INSERT INTO projects (user_id, site_url, reviews_per_day, status) VALUES (%s, %s, %s, 'pending') RETURNING id, site_url, reviews_per_day, status, created_at",
-            (user_id, site_url, reviews_per_day)
+            "INSERT INTO projects (user_id, site_url, reviews_per_day, status, review_platform_url) VALUES (%s, %s, %s, 'pending', %s) RETURNING id, site_url, reviews_per_day, status, created_at, review_platform_url",
+            (user_id, site_url, reviews_per_day, review_platform_url)
         )
         row = cur.fetchone()
         conn.commit()
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({
-            "id": row[0], "site_url": row[1], "reviews_per_day": row[2], "status": row[3], "created_at": str(row[4])
+            "id": row[0], "site_url": row[1], "reviews_per_day": row[2], "status": row[3], "created_at": str(row[4]), "review_platform_url": row[5]
         })}
 
     # Получить проекты клиента или все (admin)
@@ -90,19 +91,19 @@ def handler(event: dict, context) -> dict:
         user_id = params.get("user_id")
         if user_id:
             cur.execute(
-                "SELECT id, site_url, reviews_per_day, status, created_at FROM projects WHERE user_id = %s ORDER BY created_at DESC",
+                "SELECT id, site_url, reviews_per_day, status, created_at, review_platform_url FROM projects WHERE user_id = %s ORDER BY created_at DESC",
                 (user_id,)
             )
         else:
             cur.execute(
-                "SELECT p.id, p.site_url, p.reviews_per_day, p.status, p.created_at, u.phone FROM projects p JOIN users u ON u.id = p.user_id ORDER BY p.created_at DESC"
+                "SELECT p.id, p.site_url, p.reviews_per_day, p.status, p.created_at, u.phone, p.review_platform_url FROM projects p JOIN users u ON u.id = p.user_id ORDER BY p.created_at DESC"
             )
         rows = cur.fetchall()
         conn.close()
         if user_id:
-            result = [{"id": r[0], "site_url": r[1], "reviews_per_day": r[2], "status": r[3], "created_at": str(r[4])} for r in rows]
+            result = [{"id": r[0], "site_url": r[1], "reviews_per_day": r[2], "status": r[3], "created_at": str(r[4]), "review_platform_url": r[5]} for r in rows]
         else:
-            result = [{"id": r[0], "site_url": r[1], "reviews_per_day": r[2], "status": r[3], "created_at": str(r[4]), "phone": r[5]} for r in rows]
+            result = [{"id": r[0], "site_url": r[1], "reviews_per_day": r[2], "status": r[3], "created_at": str(r[4]), "phone": r[5], "review_platform_url": r[6]} for r in rows]
         return {"statusCode": 200, "headers": CORS, "body": json.dumps(result)}
 
     # Обновить статус (admin)
@@ -110,6 +111,7 @@ def handler(event: dict, context) -> dict:
         project_id = body.get("id")
         status = body.get("status")
         reviews_per_day = body.get("reviews_per_day")
+        review_platform_url = body.get("review_platform_url")
         if not project_id:
             conn.close()
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Нет id"})}
@@ -117,6 +119,8 @@ def handler(event: dict, context) -> dict:
             cur.execute("UPDATE projects SET status = %s, updated_at = NOW() WHERE id = %s", (status, project_id))
         if reviews_per_day:
             cur.execute("UPDATE projects SET reviews_per_day = %s, updated_at = NOW() WHERE id = %s", (reviews_per_day, project_id))
+        if review_platform_url is not None:
+            cur.execute("UPDATE projects SET review_platform_url = %s, updated_at = NOW() WHERE id = %s", (review_platform_url or None, project_id))
         conn.commit()
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}

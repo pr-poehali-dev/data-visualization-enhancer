@@ -18,6 +18,7 @@ interface Project {
   reviews_per_day: number;
   status: string;
   created_at: string;
+  review_platform_url?: string;
 }
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
@@ -215,7 +216,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Live review counter */}
-                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="w-4 h-4 text-accent/60" />
                       <span className="text-sm text-muted-foreground">Отзывов на сайте:</span>
@@ -225,11 +226,24 @@ export default function Dashboard() {
                         <span className="text-sm font-bold text-white">{count}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-green-400 animate-pulse" : "bg-muted-foreground/30"}`} />
-                      <span className="text-xs text-muted-foreground">
-                        {isActive ? "обновляется каждые 10 сек" : "обновление после активации"}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      {isActive && p.review_platform_url && (
+                        <a
+                          href={p.review_platform_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/30 text-accent rounded-xl text-xs font-medium hover:bg-accent/20 transition-all"
+                        >
+                          <Star className="w-3.5 h-3.5" />
+                          Написать отзыв на Яндексе
+                        </a>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-green-400 animate-pulse" : "bg-muted-foreground/30"}`} />
+                        <span className="text-xs text-muted-foreground">
+                          {isActive ? "обновляется каждые 10 сек" : "обновление после активации"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
