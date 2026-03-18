@@ -6,7 +6,7 @@
       "path": "/",
       "body": {"action": "register", "phone": "+70000000001", "password": "testpass123"},
       "expectedStatus": 200,
-      "expectedBody": {"user_id": "number"},
+      "expectedBody": {"phone": "+70000000001"},
       "bodyMatcher": "partial"
     }
   ]

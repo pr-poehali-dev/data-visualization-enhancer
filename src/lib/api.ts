@@ -5,12 +5,16 @@ const URLS = {
 };
 
 export async function authRequest(action: "register" | "login", phone: string, password: string) {
-  const res = await fetch(URLS.auth, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, phone, password }),
-  });
-  return res.json();
+  try {
+    const res = await fetch(URLS.auth, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, phone, password }),
+    });
+    return res.json();
+  } catch {
+    return { error: "Ошибка соединения. Попробуйте ещё раз." };
+  }
 }
 
 export async function getProjects(user_id?: number) {
